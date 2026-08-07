@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reloj Mundial · Venezuela · Chile · España</title>
+<meta name="description" content="Reloj Mundial: horas en vivo de Venezuela, Chile y España, con fases del día animadas y el turno de Elías en Chile.">
+<link rel="icon" href="reloj.ico">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<div class="intro" aria-hidden="true"></div>
+<div class="bg-drift" aria-hidden="true"></div>
+<div class="fx-vignette" aria-hidden="true"></div>
+<div class="fx-grain" aria-hidden="true"></div>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-ico" title="Hora de Caracas en vivo">
+      <svg class="ico" viewBox="0 0 100 100" aria-hidden="true">
+        <circle class="ico-face" cx="50" cy="50" r="45"/>
+        <g class="ico-ticks">
+          <line x1="50" y1="6" x2="50" y2="12" transform="rotate(0 50 50)"/>
+          <line x1="50" y1="6" x2="50" y2="12" transform="rotate(30 50 50)"/>
+          <line x1="50" y1="6" x2="50" y2="12" transform="rotate(60 50 50)"/>
+          <line x1="50" y1="6" x2="50" y2="12" transform="rotate(90 50 50)"/>
+          <line x1="50" y1="6" x2="50" y2="12" transform="rotate(120 50 50)"/>
+          <line x1="50" y1="6" x2="50" y2="12" transform="rotate(150 50 50)"/>
+          <line x1="50" y1="6" x2="50" y2="12" transform="rotate(180 50 50)"/>
+          <line x1="50" y1="6" x2="50" y2="12" transform="rotate(210 50 50)"/>
+          <line x1="50" y1="6" x2="50" y2="12" transform="rotate(240 50 50)"/>
+          <line x1="50" y1="6" x2="50" y2="12" transform="rotate(270 50 50)"/>
+          <line x1="50" y1="6" x2="50" y2="12" transform="rotate(300 50 50)"/>
+          <line x1="50" y1="6" x2="50" y2="12" transform="rotate(330 50 50)"/>
+        </g>
+        <g class="ico-hands">
+          <line class="ico-sec" x1="50" y1="56" x2="50" y2="15"/>
+          <line class="ico-min" x1="50" y1="53" x2="50" y2="25"/>
+          <line class="ico-hour" x1="50" y1="53" x2="50" y2="34"/>
+        </g>
+        <circle class="ico-hub" cx="50" cy="50" r="3.5"/>
+        <circle class="ico-ring" cx="50" cy="50" r="43" fill="none"/>
+      </svg>
+    </span>
+    <div>
+      <h1>Reloj Mundial</h1>
+      <p>Venezuela · Chile · España — en vivo</p>
+    </div>
+  </div>
+  <button id="widgetBtn" class="ghost-btn" title="Alternar modo widget">▣ Modo widget</button>
+</header>
+
+<main>
+  <!-- ===================== TARJETAS DE CIUDADES ===================== -->
+  <section id="cityGrid" class="grid">
+    <article class="card" data-city="ve">
+      <div class="card-head">
+        <span class="flag flag-ve"></span>
+        <div class="card-title">
+          <h2>Venezuela</h2>
+          <span class="city">Caracas o Barquisimeto</span>
+        </div>
+        <span class="phase-badge"><i class="phase-emoji"></i><span class="phase-name"></span></span>
+      </div>
+
+      <div class="clock-wrap">
+        <span class="clock"></span>
+        <span class="clock-ampm"></span>
+      </div>
+      <div class="date"></div>
+
+      <div class="sky" aria-hidden="true">
+        <div class="stars"></div>
+        <div class="sky-arc">
+          <span class="celestial sun"></span>
+          <span class="celestial moon"></span>
+        </div>
+        <div class="sky-label"></div>
+      </div>
+
+      <div class="daybar">
+        <div class="daybar-track">
+          <span class="dmark" style="left:29.17%"><b>7</b><em>despiertos</em></span>
+          <span class="dmark" style="left:50%"><b>12</b><em>comida</em></span>
+          <span class="dmark" style="left:83.33%"><b>20</b><em>a dormir</em></span>
+          <i class="daybar-ptr"></i>
+        </div>
+        <div class="daybar-legend">
+          <span class="phase-now">💤</span>
+        </div>
+      </div>
+      <span class="advice"><i class="adv-ico"></i><b class="adv-txt"></b></span>
+    </article>
+
+    <article class="card" data-city="cl">
+      <div class="card-head">
+        <span class="flag flag-cl"></span>
+        <div class="card-title">
+          <h2>Chile</h2>
+          <span class="city">Santiago</span>
+        </div>
+        <span class="phase-badge"><i class="phase-emoji"></i><span class="phase-name"></span></span>
+      </div>
+
+      <div class="clock-wrap">
+        <span class="clock"></span>
+        <span class="clock-ampm"></span>
+      </div>
+      <div class="date"></div>
+
+      <div class="sky" aria-hidden="true">
+        <div class="stars"></div>
+        <div class="sky-arc">
+          <span class="celestial sun"></span>
+          <span class="celestial moon"></span>
+        </div>
+        <div class="sky-label"></div>
+      </div>
+
+      <div class="daybar">
+        <div class="daybar-track">
+          <span class="dmark" style="left:29.17%"><b>7</b><em>despiertos</em></span>
+          <span class="dmark" style="left:50%"><b>12</b><em>comida</em></span>
+          <span class="dmark" style="left:83.33%"><b>20</b><em>a dormir</em></span>
+          <i class="daybar-ptr"></i>
+        </div>
+        <div class="daybar-legend">
+          <span class="phase-now">💤</span>
+        </div>
+      </div>
+      <span class="advice"><i class="adv-ico"></i><b class="adv-txt"></b></span>
+
+      <div class="elias">
+        <div class="elias-head">
+          <span class="elias-tag">ELIAS</span>
+          <span class="elias-status"></span>
+        </div>
+        <div class="elias-body">
+          <div class="elias-line1"></div>
+          <div class="elias-line2"></div>
+          <div class="elias-bar"><i></i></div>
+        </div>
+      </div>
+    </article>
+
+    <article class="card" data-city="es">
+      <div class="card-head">
+        <span class="flag flag-es"></span>
+        <div class="card-title">
+          <h2>España</h2>
+          <span class="city">Madrid</span>
+        </div>
+        <span class="phase-badge"><i class="phase-emoji"></i><span class="phase-name"></span></span>
+      </div>
+
+      <div class="clock-wrap">
+        <span class="clock"></span>
+        <span class="clock-ampm"></span>
+      </div>
+      <div class="date"></div>
+
+      <div class="sky" aria-hidden="true">
+        <div class="stars"></div>
+        <div class="sky-arc">
+          <span class="celestial sun"></span>
+          <span class="celestial moon"></span>
+        </div>
+        <div class="sky-label"></div>
+      </div>
+
+      <div class="daybar">
+        <div class="daybar-track">
+          <span class="dmark" style="left:29.17%"><b>7</b><em>despiertos</em></span>
+          <span class="dmark" style="left:50%"><b>12</b><em>comida</em></span>
+          <span class="dmark" style="left:83.33%"><b>20</b><em>a dormir</em></span>
+          <i class="daybar-ptr"></i>
+        </div>
+        <div class="daybar-legend">
+          <span class="phase-now">💤</span>
+        </div>
+      </div>
+      <span class="advice"><i class="adv-ico"></i><b class="adv-txt"></b></span>
+    </article>
+  </section>
+
+  <!-- ===================== EL DIA EN VIVO ===================== -->
+  <section class="panel" id="livePanel">
+    <div class="panel-head">
+      <h2>El día en vivo</h2>
+      <p>La personalización del día: a las <b>7</b> ya están despiertos (puedes escribirles), a las <b>12</b> hora de comer y a las <b>20</b> en casa a punto de dormir (mejor no escribir). Cada ciudad vive su propia hora.</p>
+    </div>
+    <div id="liveTrack" class="live-track"></div>
+    <div class="phase-legend"></div>
+  </section>
+</main>
+
+<footer>
+  <p>Este sitio funciona también como <b>widget</b> (pulsa “Modo widget” arriba). Es la misma aplicación de escritorio, publicada en GitHub Pages.</p>
+  <p class="tiny">Venezuela · America/Caracas · Chile · America/Santiago · España · Europe/Madrid</p>
+</footer>
+
+<script src="assets/app.js"></script>
+</body>
+</html>

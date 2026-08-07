@@ -1,0 +1,23 @@
+# Python / widget de escritorio
+__pycache__/
+*.py[cod]
+*$py.class
+*.log
+error.log
+config.json
+
+# Entorno local
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+
+# Editor / sistema
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Github Pages (despliegue generado si se usa Actions)
+docs/
