@@ -336,6 +336,11 @@
 
     render();
     setInterval(render, 250);
+
+    /* Service worker (instalable + offline) */
+    if ("serviceWorker" in navigator && window.location.protocol === "https:") {
+      navigator.serviceWorker.register("./sw.js").catch(function () {});
+    }
   }
 
   if (document.readyState === "loading") {
