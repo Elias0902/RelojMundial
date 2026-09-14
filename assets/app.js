@@ -347,7 +347,7 @@
 
     var img = _avatarEl.querySelector("#avatarImg");
     if (img) {
-      img.src = "assets/avatar_" + state + ".jpg";
+      img.src = "assets/avatar_" + state + ".png";
     }
 
     // etiqueta de estado dentro del avatar
