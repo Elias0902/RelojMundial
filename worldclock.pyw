@@ -64,9 +64,12 @@ ADVICE_OK = "#8BE99A"
 ADVICE_NO = "#FFB86B"
 
 # Elias (Chile): comienza a trabajar el 14 de agosto de 2026.
-# Turno de 09:00 a 18:30, hora de Venezuela.
+# Horario Venezuela: 08:00-17:30. Almuerzo: 13:00-14:30. Pre-aviso cierre: 17:00.
+# Chile usa America/Santiago (DST automático): en verano (sep-abr) es +1h respecto a Venezuela.
 ELIAS_YEAR, ELIAS_MONTH, ELIAS_DAY = 2026, 8, 14
-ELIAS_WORK = (9 * 60, 18 * 60 + 30)          # (inicio, fin) en minutos
+ELIAS_WORK    = (8 * 60,       17 * 60 + 30)  # inicio / fin turno (minutos Venezuela)
+ELIAS_LUNCH   = (13 * 60,      14 * 60 + 30)  # almuerzo
+ELIAS_PRECLOSE = 17 * 60                       # aviso pre-cierre (minutos Venezuela)
 ELIAS_TZ, ELIAS_OFF = "America/Caracas", -4
 
 # Fondos con degradado (g1 arriba -> g2 abajo)
@@ -195,6 +198,9 @@ class ClockWidget:
         self.settings = None
         self.cw = self.ch = 0
         self._prev = None
+        self._elias_state_prev = None   # para detectar cambios de estado (notificacion)
+        self._avatar_t = 0.0            # tiempo acumulado para animacion del avatar
+        self._avatar_phase = 0.0        # fase de animacion (oscilacion)
 
         root.title("Reloj Mundial")
         root.overrideredirect(True)
@@ -554,11 +560,15 @@ class ClockWidget:
                     "marker_r": max(4, int(bar_h * 0.6))}
             self.items.append(item)
 
-            # bloque Elias (solo Chile) - tarjeta limpia con acento de color
+            # bloque Elias (solo Chile) - tarjeta limpia con acento de color + avatar
             if country == "Chile":
                 ey = bar_y + bar_h + int(10 * s)
                 acc_w = max(2, int(3 * s))
                 content_x = bx + acc_w + int(9 * s)
+                # reservar espacio para el avatar a la derecha del texto
+                avatar_r = max(28, int(45 * s))        # radio del avatar
+                avatar_cx = bx + L["block_w"] - avatar_r - int(6 * s)
+                text_max_x = avatar_cx - int(12 * s)  # texto no sobrepasa el avatar
                 # etiqueta (ELIAS . estado)
                 t_id = c.create_text(content_x, ey, anchor="nw", text="",
                                      fill=tc["accent"], font=L["fc"])
@@ -568,7 +578,7 @@ class ClockWidget:
                                      fill=tc["time"], font=L["fev"])
                 ey_b = ey_v + L["lh_ev"] + int(8 * s)
                 eb_h = L["ebar_h"]
-                bar_x1 = bx + L["block_w"]
+                bar_x1 = text_max_x
                 # barra de progreso: pista tenue + relleno (solo al trabajar)
                 eb0 = c.create_rectangle(content_x, ey_b, bar_x1, ey_b + eb_h,
                                          fill="#FFFFFF", outline="", stipple="gray12",
@@ -578,9 +588,13 @@ class ClockWidget:
                 # acento vertical a la izquierda (color segun estado)
                 accent = c.create_rectangle(bx, ey, bx + acc_w, ey_b + eb_h,
                                             fill="#4ade80", outline="")
+                # centro vertical del avatar
+                avatar_cy = ey + (ey_b + eb_h - ey) // 2
                 item["elias"] = {"t": t_id, "v": v_id, "eb0": eb0, "eb1": eb1,
                                  "accent": accent,
-                                 "bar": (content_x, ey_b, bar_x1 - content_x, eb_h)}
+                                 "bar": (content_x, ey_b, bar_x1 - content_x, eb_h),
+                                 "avatar_cx": avatar_cx, "avatar_cy": avatar_cy,
+                                 "avatar_r": avatar_r}
 
         # ---- botones arriba a la derecha ----
         r = L["ctrl_r"]
@@ -620,19 +634,38 @@ class ClockWidget:
                     "faltan %dd %02d:%02d:%02d" % (d, s // 3600, (s % 3600) // 60, s % 60), None)
         mins = now.hour * 60 + now.minute + now.second / 60.0
         ws, we = ELIAS_WORK
+        ls, le = ELIAS_LUNCH
+        # Almuerzo (pausa dentro del turno)
+        if ls <= mins < le:
+            left = le - mins
+            frac = (mins - ws) / float(we - ws)
+            return ("lunch", "ELÍAS · almorzando 🍽️",
+                    "vuelta en %02d:%02d" % (int(left // 60), int(left % 60)), frac)
+        # Pre-aviso de cierre (17:00–17:30 VE)
+        if ELIAS_PRECLOSE <= mins < we:
+            left = we - mins
+            frac = (mins - ws) / float(we - ws)
+            return ("preclose", "ELÍAS · ⚠️ cerrando pronto",
+                    "cierra en %02d:%02d" % (int(left // 60), int(left % 60)), frac)
+        # Turno activo (08:00–13:00 y 14:30–17:00)
         if ws <= mins < we:
             frac = (mins - ws) / float(we - ws)
             left = we - mins
-            return ("work", "ELÍAS · turno 09:00–18:30",
+            return ("work", "ELÍAS · 💼 en turno 08:00–17:30",
                     "quedan %02d:%02d" % (int(left // 60), int(left % 60)), frac)
+        # Fuera de turno
         rem = (ws - mins) if mins < ws else (24 * 60 - mins + ws)
-        return ("rest", "ELÍAS · descansando",
+        return ("rest", "ELÍAS · descansando 😴",
                 "próximo turno en %02d:%02d" % (int(rem // 60), int(rem % 60)), None)
 
     def _update_horarios(self):
         c = self.canvas
         t0 = time.time()
         tc = self.text_colors()
+        # Avanzar fase de animacion del avatar (~60 grados/seg a 4fps)
+        self._avatar_t += 0.25          # segundos por tick (250ms)
+        self._avatar_phase = self._avatar_t * 2.0   # radianes / seg base
+
         for it in self.items:
             dt, exact = self._now(it["tz"], it["off"])
             h24 = dt.hour + dt.minute / 60.0 + dt.second / 3600.0
@@ -667,25 +700,74 @@ class ClockWidget:
             if "elias" in it:
                 state, t1, t2, frac_e = self._elias_info()
                 el = it["elias"]
-                scol = {"work": ADVICE_OK, "rest": ADVICE_NO,
-                        "count": "#7FC8FF"}.get(state, tc["accent"])
+                scol = {
+                    "work":     ADVICE_OK,      # verde: trabajando
+                    "lunch":    "#FFD700",       # oro: almorzando
+                    "preclose": "#FF6B35",       # naranja: cerrando pronto
+                    "rest":     ADVICE_NO,       # ambar: descansando
+                    "count":    "#7FC8FF"        # azul: por comenzar
+                }.get(state, tc["accent"])
                 c.itemconfig(el["t"], text=t1)
                 c.itemconfig(el["v"], text=t2)
                 c.itemconfig(el["accent"], fill=scol)
                 ex, ey, ew, eh = el["bar"]
-                if state == "work":
+                if state in ("work", "lunch", "preclose"):
                     f = max(0.0, min(1.0, frac_e or 0.0))
                     c.itemconfig(el["eb0"], state="normal")
                     c.itemconfig(el["eb1"], state="normal", fill=scol)
                     c.coords(el["eb1"], ex, ey, ex + f * ew, ey + eh)
                 else:
-                    # sin barra "muerta" fuera del turno: se oculta pista y relleno
+                    # sin barra fuera del turno
                     c.itemconfig(el["eb0"], state="hidden")
                     c.itemconfig(el["eb1"], state="hidden")
+                # Notificacion de estado (solo al cambiar)
+                self._maybe_notify(state, t1, t2)
 
     def _toggle_view(self):
         self.view = "horarios" if self.view == "clock" else "clock"
         self.redraw()
+
+    # ------------------------------------------------- notificaciones Windows
+    def _maybe_notify(self, state, title, body):
+        """Dispara notificacion PowerShell cuando cambia el estado de Elias."""
+        if state == self._elias_state_prev:
+            return
+        self._elias_state_prev = state
+        if not IS_WIN:
+            return
+        msgs = {
+            "work":     ("Elias - Turno iniciado",    "08:00 - 17:30 VE · en Chile +1h"),
+            "lunch":    ("Elias - Almuerzo",           "Regresa a las 14:30 VE"),
+            "preclose": ("Elias - Cerrando en 30 min","Cierra a las 17:30 VE"),
+            "rest":     ("Elias - Turno terminado",   "Hasta manana"),
+            "count":    ("Elias - Por comenzar",       title),
+        }
+        if state not in msgs:
+            return
+        ntitle, nbody = msgs[state]
+        tip_type = "Warning" if state == "preclose" else "Info"
+        try:
+            import threading, subprocess
+            ps = (
+                "Add-Type -AssemblyName System.Windows.Forms;"
+                "Add-Type -AssemblyName System.Drawing;"
+                "$n=New-Object System.Windows.Forms.NotifyIcon;"
+                "$n.Icon=[System.Drawing.SystemIcons]::Application;"
+                "$n.Visible=$true;"
+                "$n.ShowBalloonTip(7000,'" + ntitle + "','" + nbody + "',"
+                "[System.Windows.Forms.ToolTipIcon]::" + tip_type + ");"
+                "Start-Sleep 8;$n.Dispose()"
+            )
+            def _fire():
+                try:
+                    subprocess.Popen(
+                        ["powershell", "-WindowStyle", "Hidden", "-Command", ps],
+                        creationflags=0x08000000, shell=False)
+                except Exception:
+                    pass
+            threading.Thread(target=_fire, daemon=True).start()
+        except Exception:
+            pass
 
     def _draw_button(self, cx, cy, r, name, tc):
         c = self.canvas
