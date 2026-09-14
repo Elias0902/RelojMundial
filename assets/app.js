@@ -27,20 +27,24 @@
     { a: 22, b: 24, e: "😴", n: "A punto de dormir",  m: "Casi durmiendo: solo escríbele si es una emergencia",   adv: "No escribas · solo emergencia", ok: false, c: "rgba(92,107,192,.55)" }
   ];
 
-  /* Horario Elias en minutos desde medianoche (hora Venezuela UTC-4) */
+  /* Horario Elias en minutos desde medianoche (hora de Chile, America/Santiago).
+     El turno y el almuerzo se calculan en la hora local de Chile;
+     el DST se resuelve automáticamente vía Intl. */
   var ELIAS = {
     start:    new Date("2026-08-14T00:00:00-04:00").getTime(),
-    wStart:   8 * 60,            // 08:00 VE
-    wEnd:     17 * 60 + 30,      // 17:30 VE
+    wStart:   9 * 60,            // 09:00 Chile
+    wEnd:     18 * 60 + 30,      // 18:30 Chile
     lStart:   13 * 60,           // 13:00 almuerzo
-    lEnd:     14 * 60 + 30,      // 14:30 fin almuerzo
-    preClose: 17 * 60,           // 17:00 pre-aviso
-    tz:       "America/Caracas",
+    lEndWeek: 14 * 60 + 30,      // 14:30 fin almuerzo (lun-jue)
+    lEndFri:  14 * 60,           // 14:00 fin almuerzo (vie)
+    preClose: 18 * 60,           // 18:00 pre-aviso (30 min antes del cierre)
+    tz:       "America/Santiago",
     off:      -4
   };
 
   var WEEKDAYS = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
   var MONTHS = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+  var DOW_EN = { Sunday: 0, Monday: 1, Tuesday: 2, Wednesday: 3, Thursday: 4, Friday: 5, Saturday: 6 };
 
   function pad(n) { return (n < 10 ? "0" : "") + n; }
   function flagClass(id) { return "flag-" + id; }
@@ -67,6 +71,7 @@
         month: parseInt(parts.month, 10),
         year: parseInt(parts.year, 10),
         weekday: parts.weekday,
+        dow: DOW_EN[parts.weekday],
         frac: (h + parseInt(parts.minute, 10) / 60 + parseInt(parts.second, 10) / 3600) / 24
       };
     } catch (e) {
@@ -80,6 +85,7 @@
         month: d.getUTCMonth() + 1,
         year: d.getUTCFullYear(),
         weekday: WEEKDAYS[wd],
+        dow: wd,
         frac: (d.getUTCHours() + d.getUTCMinutes() / 60 + d.getUTCSeconds() / 3600) / 24
       };
     }
@@ -214,57 +220,81 @@
         pct: null
       };
     }
-    var ve = getTime(ELIAS);
-    var mins = ve.h * 60 + ve.m + ve.s / 60;
+    var cl = getTime(ELIAS);
+    var mins = cl.h * 60 + cl.m + cl.s / 60;
+    var dow = cl.dow;                       // 0=domingo … 6=sábado
     var ws = ELIAS.wStart, we = ELIAS.wEnd;
-    var ls = ELIAS.lStart, le = ELIAS.lEnd;
+    var pct = ((mins - ws) / (we - ws)) * 100;
 
-    // Almuerzo
-    if (mins >= ls && mins < le) {
-      var leftL = le - mins;
+    // Fin de semana: no hay turno
+    if (dow === 0 || dow === 6) {
+      return {
+        state: "rest",
+        status: "😴 Descansando",
+        line1: "Fin de semana · sin turno",
+        line2: "Próximo turno el lunes a las 09:00",
+        pct: null
+      };
+    }
+
+    // Almuerzo (13:00 – 14:30 lun-jue, 13:00 – 14:00 vie), hora de Chile
+    var lEnd = (dow === 5) ? ELIAS.lEndFri : ELIAS.lEndWeek;
+    if (mins >= ELIAS.lStart && mins < lEnd) {
       return {
         state: "lunch",
         status: "🍽️ Almorzando",
-        line1: "Almuerzo 13:00 – 14:30 · hora Venezuela",
-        line2: "Vuelta en " + fmtClock(leftL),
-        pct: ((mins - ws) / (we - ws)) * 100
+        line1: "En almuerzo · puedes escribirle igual",
+        line2: "Vuelve al trabajo en " + fmtClock(lEnd - mins),
+        pct: pct
       };
     }
-    // Pre-aviso cierre
+
+    // Pre-aviso de cierre (últimos 30 min del turno)
     if (mins >= ELIAS.preClose && mins < we) {
       var leftP = we - mins;
       return {
         state: "preclose",
         status: "⚠️ Cerrando pronto",
-        line1: "¡Cierra a las 17:30 VE · en " + Math.round(leftP) + " min!",
+        line1: "¡Cierra a las 18:30 · en " + Math.round(leftP) + " min!",
         line2: "Cierra en " + fmtClock(leftP),
-        pct: ((mins - ws) / (we - ws)) * 100
+        pct: pct
       };
     }
+
     // Turno activo
     if (mins >= ws && mins < we) {
-      var leftW = we - mins;
       return {
         state: "work",
         status: "💼 Trabajando",
-        line1: "Turno 08:00 – 17:30 · hora Venezuela",
-        line2: "Quedan " + fmtClock(leftW),
-        pct: ((mins - ws) / (we - ws)) * 100
+        line1: "Turno 09:00 – 18:30 · hora de Chile",
+        line2: "Quedan " + fmtClock(we - mins),
+        pct: pct
       };
     }
-    // Fuera de turno
-    var rem = mins < ws ? ws - mins : 24 * 60 - mins + ws;
+
+    // Antes del turno
+    if (mins < ws) {
+      return {
+        state: "rest",
+        status: "😴 Descansando",
+        line1: "Próximo turno a las 09:00 · hora de Chile",
+        line2: "En " + fmtClock(ws - mins),
+        pct: null
+      };
+    }
+    // Después del turno: lun-jue vuelve mañana; el viernes, el lunes
     return {
       state: "rest",
       status: "😴 Descansando",
-      line1: "Próximo turno a las 08:00 · hora Venezuela",
-      line2: "En " + fmtClock(rem),
+      line1: "Turno terminado · hora de Chile",
+      line2: (dow === 5) ? "Próximo turno el lunes a las 09:00"
+                         : "Próximo turno mañana a las 09:00",
       pct: null
     };
   }
 
   function fmtDate(t) {
-    return WEEKDAYS[t.weekday] + " " + t.day + " de " + MONTHS[t.month - 1] + " de " + t.year;
+    return WEEKDAYS[t.dow] + " " + t.day + " de " + MONTHS[t.month - 1] + " de " + t.year;
   }
 
   /* ---- Notificaciones Web (alarmas de horario) ---- */
@@ -290,10 +320,10 @@
   }
 
   var NOTIF_MSGS = {
-    "work":     { title: "💼 Elías — Turno iniciado",      body: "08:00 VE · Chile +1h verano · ¡A trabajar!" },
-    "lunch":    { title: "🍽️ Elías — Hora de almuerzo",    body: "13:00 VE — Regresa a las 14:30 VE" },
-    "preclose": { title: "⚠️ Elías — ¡Cierra en 30 min!",  body: "Pre-aviso de cierre 17:00 VE" },
-    "rest":     { title: "🏠 Elías — Turno terminado",      body: "17:30 VE · ¡Hasta mañana!" },
+    "work":     { title: "💼 Elías — Turno iniciado",      body: "09:00 hora de Chile · ¡A trabajar!" },
+    "lunch":    { title: "🍽️ Elías — Hora de almuerzo",    body: "13:00 Chile — Regresa a las 14:30 (14:00 los viernes)" },
+    "preclose": { title: "⚠️ Elías — ¡Cierra en 30 min!",  body: "Pre-aviso de cierre · 18:00 hora de Chile" },
+    "rest":     { title: "🏠 Elías — Turno terminado",      body: "18:30 hora de Chile · ¡Hasta mañana!" },
     "count":    { title: "⏳ Elías — Por comenzar",          body: "El turno empieza el 14 ago 2026" }
   };
 
